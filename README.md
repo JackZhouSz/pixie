@@ -160,6 +160,8 @@ Check the outputs in the notebook: [nbs/real_scene.ipynb](nbs/real_scene.ipynb).
 
 <h2 id="vlm-labeling">🏷️ VLM Labeling</h2>
 
+Below are the steps to reproduce our mining process from Objaverse. We extract high-quality single-object scenes from Objaverse for each of the 10 semantic classes. The precomputed [obj_ids_metadata.json](config/obj_ids_metadata.json) containing the list of `object_id` along with the `obj_class` and whether the object is considered `is_appropriate` (high-quality enough) by our `vlm_filtering` pipeline is provided. The preproduction steps are only provided for completeness.
+
 1. Compute the cosine similarity between each Objaverse object name to an object class we'd like (e.g., `tree`) and keep the `top_k` for our PixieVerse dataset.
     ```
     python data_curation/objaverse_selection.py
