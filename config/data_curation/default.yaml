@@ -39,3 +39,14 @@ manual_correction:
   obj_class: null  # Specific object class to correct (required)
   input_file: "all_results.json"  # Input file name (without path)
   output_file: "all_results_corrected.json"  # Output file name (without path)
+
+# Manual simulation validation parameters
+manual_sim_validation:
+  obj_class: null  # Specific object class to validate (required)
+  input_file: "all_results_corrected.json"  # Input file name (without path)
+  output_file: "all_results_validated.json"  # Output file name (without path)
+  num_samples: -1  # Number of objects to inspect (-1 means all)
+  sample_id: 0  # Simulation sample id used in video path
+  grid_size: 64  # Grid size used in simulation output folder naming
+  columns_per_row: 8  # Number of videos shown per row
+  render_outputs_dir: null  # Optional override; defaults to paths.render_outputs_dir

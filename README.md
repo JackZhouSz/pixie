@@ -36,10 +36,16 @@ $^1$ University of Pennsylvania · $^2$ MIT
 
 Photorealistic 3D reconstructions (NeRF, Gaussian Splatting) capture geometry & appearance but **lack physics**. This limits 3D reconstruction to static scenes. Recently, there has been a surge of interest in integrating physics into 3D modeling. But existing test‑time optimisation methods are slow and scene‑specific. **Pixie** trains a neural network that maps pretrained visual features (i.e., CLIP) to **dense material fields** of physical properties in a single forward pass, enabling fast and generalizable physics inference and simulation.
 
+## 🔔 Updates
+
+- **2026-03-05:** Released **PixieVerse** curated dataset on Hugging Face: [vlongle/pixieverse](https://huggingface.co/datasets/vlongle/pixieverse).
+- **2026-03-05:** Added direct download support for models and dataset (`scripts/download_models.py`, `scripts/download_data.py`) to avoid re-running full data mining/rendering.
+- **2026-03-05:** For detailed dataset download/unpack instructions and structure, see [data_readme.md](data_readme.md).
+
 ## 💡 Contents
 
 1. [Installation](#installation)
-2. [Download Pre-trained Models](#download-models)
+2. [Download Models and Dataset](#download-models)
 3. [Usage](#usage)
 4. [VLM Labeling](#vlm-labeling)
 5. [Training](#training)
@@ -103,12 +109,59 @@ Install the [Gaussian-Splatting addon](https://github.com/ReshotAI/gaussian-spla
 
 Set the appropriate api keys and select VLM models you'd like in [config/segmentation/default.yaml](config/segmentation/default.yaml), we support OpenAI, Claude, Google's Gemini, or Qwen (local, no api needed). You can also implement more model wrappers yourself following our template!
 
-<h2 id="download-models">📥 Download Pre-trained Models and Data</h2>
+<h2 id="download-models">📥 Download Models and Dataset</h2>
 
 We provide pre-trained model checkpoints via HuggingFace Datasets. To download the models:
 
 ```bash
-python scripts/download_data.py
+python scripts/download_models.py
+```
+
+Model repo: [https://huggingface.co/datasets/vlongle/pixie](https://huggingface.co/datasets/vlongle/pixie)
+
+### Download PixieVerse dataset (recommended over re-generating)
+
+If you mainly want to train/evaluate Pixie, you can skip the expensive data mining/rendering pipeline and directly download our curated PixieVerse dataset from Hugging Face:
+
+Dataset repo: [https://huggingface.co/datasets/vlongle/pixieverse](https://huggingface.co/datasets/vlongle/pixieverse)
+
+```bash
+# Download archived dataset payloads
+python scripts/download_data.py \
+  --dataset-repo vlongle/pixieverse \
+  --dirs archives \
+  --local-dir /path/to/pixieverse_root
+```
+
+For quick testing, download a single class only:
+
+```bash
+python scripts/download_data.py \
+  --dataset-repo vlongle/pixieverse \
+  --dirs archives \
+  --obj-class tree \
+  --local-dir /path/to/pixieverse_root
+```
+
+Then unpack archives into the standard folder structure (`data/`, `render_outputs/`, etc.):
+
+```bash
+ROOT=/path/to/pixieverse_root
+set -euo pipefail
+
+for d in data outputs render_outputs vlm_seg_results vlm_seg_critic_results vlm_seg_mat_sample_results; do
+  src="$ROOT/archives/$d"
+  dst="$ROOT/$d"
+  mkdir -p "$dst"
+  [ -d "$src" ] || { echo "[skip] $src not found"; continue; }
+  echo "[dir] $d"
+  for a in "$src"/*.tar "$src"/*.tar.gz; do
+    [ -e "$a" ] || continue
+    echo "  -> extracting $(basename "$a")"
+    tar -xf "$a" -C "$dst" --checkpoint=2000 --checkpoint-action=echo="    ... extracted 2000 more entries"
+    echo "  <- done $(basename "$a")"
+  done
+done
 ```
 
 <h2 id="usage">🎯 Usage</h2>
@@ -159,6 +212,12 @@ Use `segmentation.neural.cache_results=true` if the latest inferene already cont
 Check the outputs in the notebook: [nbs/real_scene.ipynb](nbs/real_scene.ipynb).
 
 <h2 id="vlm-labeling">🏷️ VLM Labeling</h2>
+
+If you already downloaded PixieVerse from Hugging Face, you can skip this section.
+See **Download PixieVerse dataset (recommended over re-generating)** above for the direct download + unpack instructions:
+[https://huggingface.co/datasets/vlongle/pixieverse](https://huggingface.co/datasets/vlongle/pixieverse)
+
+This section is only for reproducing the full data mining / rendering / VLM filtering pipeline from scratch.
 
 Below are the steps to reproduce our mining process from Objaverse. We extract high-quality single-object scenes from Objaverse for each of the 10 semantic classes. The precomputed [obj_ids_metadata.json](config/obj_ids_metadata.json) containing the list of `object_id` along with the `obj_class` and whether the object is considered `is_appropriate` (high-quality enough) by our `vlm_filtering` pipeline is provided. The preproduction steps are only provided for completeness.
 

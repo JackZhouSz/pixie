@@ -29,11 +29,13 @@ INSTRUCTION_CONFIGS = {
         "tips": [
             "In a scene, typically there's a stationary part that will serve to fix the object to the ground. Usually, it's the pot, or some base of the tree. You must set the material_id of the stationary part to 6. If there's no stationary part, then never mind.",
             "For numerical stability, `E` should be between 1e4 and 1e6.",
+            "The ranges between different parts need not be disjoint and can overlap when constraints define the ordering.",
             "The higher the `E` is, the stiffer the object is. E.g., so tree would sway less in the wind.",
         ],
         "example_constraints": textwrap.dedent("""
-            assert material_dict["leaves"]["density"] < material_dict["trunk"]["density"] < material_dict["pot"]["density"], "The density of the leaves should be less than the trunk and the pot"
-            assert material_dict["leaves"]["E"] < material_dict["trunk"]["E"] < material_dict["pot"]["E"], "The stiffness of the leaves should be less than the trunk and the pot"
+            assert material_dict["leaves"]["density"] < material_dict["trunk"]["density"], "The density of the leaves should be less than the trunk"
+            assert material_dict["leaves"]["E"] < material_dict["trunk"]["E"], "The stiffness of the leaves should be less than the trunk"
+            assert material_dict["pot"]["material_id"] == 6, "The pot should be stationary"
         """),
     },
     "flowers": {
@@ -51,13 +53,14 @@ INSTRUCTION_CONFIGS = {
         """),
         "example_all_queries": [["vase", "flowers"], ["ceramic base", "petals"], ["blue vase", "pink flower"]],
         "example_constraints": textwrap.dedent("""
-            assert material_dict["vase"]["density"] > material_dict["flowers"]["density"], "The density of the vase should be greater than the flowers"
-            assert material_dict["vase"]["E"] > material_dict["flowers"]["E"], "The stiffness of the vase should be greater than the flowers"
+            assert material_dict["flowers"]["E"] < material_dict["vase"]["E"], "Flowers should have a lower stiffness than the vase"
+            assert material_dict["vase"]["material_id"] == 6, "Vase must be stationary"
         """),
         "tips": [
             "In a typical flower arrangement, the vase (or base) is stationary, so give that part material_id=6 if present.",
             "For numerical stability, `E` should roughly be between 1e4 and 1e6.",
             "The higher the `E`, the stiffer the part. So the vase should have a higher E range than the flowers.",
+            "The ranges for different parts do not need to be disjoint and may overlap.",
         ]
     },
     "shrub": {
@@ -65,6 +68,10 @@ INSTRUCTION_CONFIGS = {
         "special_notes": textwrap.dedent("""
             **Dataset note:** Shrubs in our dataset stand by themselves—there is **no planter or base**.
             You should therefore return only the shrub's structural parts and none of them are stationary.
+            
+            **IMPORTANT OUTPUT FORMAT:** Return exactly one JSON object with top-level keys:
+            `material_dict`, `reasoning`, `constraints`, `all_queries`.
+            Do not return part names at top level; part names must be nested under `material_dict`.
         """),
         "example_material_dict": {
             "stems":    { "density": 300, "E": 1e5, "nu": 0.35, "material_id": get_material_id("jelly") },
@@ -92,9 +99,13 @@ INSTRUCTION_CONFIGS = {
         "special_notes": textwrap.dedent("""
             **Dataset note:** Grass patches are usually isolated; occasionally a visible soil patch is
             underneath. Include a "soil" part only if it is visible.
+            
+            **IMPORTANT OUTPUT FORMAT:** Return exactly one JSON object with top-level keys:
+            `material_dict`, `reasoning`, `constraints`, `all_queries`.
+            Do not return part names at top level; part names must be nested under `material_dict`.
         """),
         "example_material_dict": {
-            "blades": { "density": 80, "E": 1e4, "nu": 0.45, "material_id": get_material_id("jelly") }
+            "blades": { "density": [60, 140], "E": [1e4, 8e4], "nu": [0.35, 0.48], "material_id": get_material_id("jelly") }
         },
         "example_explanation": textwrap.dedent("""
             Example A (typical isolated grass—no stationary part):
@@ -134,13 +145,12 @@ INSTRUCTION_CONFIGS = {
             segment it into multiple parts. The object should be treated as a single, bouncy rubber-like object.
         """),
         "example_material_dict": {
-            "toy": {"density": [80, 150], "E": [3e4, 5e4], "nu": [0.4, 0.45], "material_id": get_material_id("jelly")}
+            "toy": {"density": [100, 200], "E": [8e3, 8e4], "nu": [0.3, 0.4], "material_id": get_material_id("jelly")}
         },
         "example_explanation": "",
         "example_all_queries": [["toy"], ["rubber toy"], ["yellow duck"], ["plastic toy"]],
         "tips": [
             "Always use material_id=0 (jelly) for bouncy rubber-like behavior",
-            "Keep E relatively low (around 1e3) for good bounce",
             "Density should be in the range of typical rubber/plastic toys",
             "Poisson's ratio should be around 0.35 for rubber-like behavior",
             "Make sure all queries in all_queries list are single-part queries"
@@ -154,13 +164,12 @@ INSTRUCTION_CONFIGS = {
             bouncy object.
         """),
         "example_material_dict": {
-            "ball": {"density": [80, 150], "E": [3e4, 5e4], "nu": [0.4, 0.45], "material_id": get_material_id("jelly")}
+            "ball": {"density": [100, 200], "E": [8e3, 8e4], "nu": [0.3, 0.4], "material_id": get_material_id("jelly")}
         },
         "example_explanation": "",
         "example_all_queries": [["ball"], ["sport ball"], ["basketball"], ["round ball"]],
         "tips": [
             "Always use material_id=0 (jelly) for bouncy behavior",
-            "Keep E relatively low (around 1e3) for good bounce",
             "Density should be in the range of typical sport balls",
             "Poisson's ratio should be around 0.35 for rubber-like behavior",
             "Make sure all queries in all_queries list are single-part queries"
@@ -174,7 +183,7 @@ INSTRUCTION_CONFIGS = {
             rigid metal object.
         """),
         "example_material_dict": {
-            "can": {"density": [2600, 2800], "E": [5e10, 8e10], "nu": [0.25, 0.35], "material_id": get_material_id("metal")}
+            "can": {"density": [2500, 2900], "E": [8e7, 1.2e8], "nu": [0.25, 0.35], "material_id": get_material_id("metal")}
         },
         "example_explanation": "",
         "example_all_queries": [["can"], ["soda can"], ["aluminum can"], ["metal can"]],
@@ -290,6 +299,7 @@ SYSTEM_INSTRUCTION_TEMPLATE = textwrap.dedent("""\
     Note that there are many different valid values for the material properties including E, nu, and density
     that would influence how the object behaves. Thus, instead of actual values, you should return
     a range of values like "E": [2e4, 2e6]. Also, provide reasoning and constraints on the values when appropriate.
+    The ranges for different parts need not be disjoint and may overlap.
 
     So the output should be a json with the following format:
 

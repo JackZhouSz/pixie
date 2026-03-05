@@ -38,7 +38,27 @@ class Agent:
             model_name=cfg.model_name, system_instruction=self.system_instruction, api_key=cfg.api_key
         )
         print(f"Model: {self.model}")
-        OmegaConf.save(self.cfg, join_path(cfg.out_dir, "config.json"))
+        self._save_public_config()
+
+    def _save_public_config(self):
+        cfg_dict = OmegaConf.to_container(self.cfg, resolve=True)
+        assert isinstance(cfg_dict, dict), "Agent config must be a dictionary-like object."
+        self._drop_api_key_fields(cfg_dict)
+        OmegaConf.save(OmegaConf.create(cfg_dict), join_path(self.cfg.out_dir, "config.json"))
+
+    @staticmethod
+    def _drop_api_key_fields(node):
+        if isinstance(node, dict):
+            for key in list(node.keys()):
+                key_lower = str(key).lower()
+                if "api" in key_lower and "key" in key_lower:
+                    node.pop(key, None)
+                    continue
+                Agent._drop_api_key_fields(node[key])
+            return
+        if isinstance(node, list):
+            for item in node:
+                Agent._drop_api_key_fields(item)
 
     @ property
     def out_path(self):
